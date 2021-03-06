@@ -1,4 +1,3 @@
-#define GLFW_INCLUDE_VULKAN
 #include <vulkan/vulkan.hpp>
 #include <GLFW/glfw3.h>
 
@@ -6,6 +5,8 @@
 #include <stdexcept>
 #include <vector>
 #include <cstring>
+#include <cstdlib>
+#include <optional>
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -19,6 +20,14 @@ const bool enableValidationLayers = false;
 #else
 const bool enableValidationLayers = true;
 #endif
+
+struct QueueFamilyIndices {
+	std::optional<uint32_t> graphicsFamily;
+
+	bool isComplete() {
+		return graphicsFamily.has_value();
+	}
+};
 
 class HelloTriangleApplication {
 
@@ -35,6 +44,7 @@ private:
 	GLFWwindow* window;
 
 	vk::UniqueInstance vkInstance;
+	vk::PhysicalDevice vkDevice;
 
 	void initWindow() {
 		glfwInit();
@@ -48,6 +58,7 @@ private:
 	void initVulkan() {
 		createInstance();
 		setupDebugMessenger();
+		pickPhysicalDevice();
 	}
 
 	void mainLoop() {
@@ -108,11 +119,7 @@ private:
 	}
 
 	bool checkValidationLayerSupport() {
-		uint32_t layerCount;
-		vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-
-		std::vector<VkLayerProperties> availableLayers(layerCount);
-		vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+		auto availableLayers = vk::enumerateInstanceLayerProperties();
 
 		for (const char* layername : validationLayers) {
 			bool foundLayer = false;
@@ -142,6 +149,46 @@ private:
 			extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 		}
 		return extensions;
+	}
+
+	void pickPhysicalDevice() {
+		auto devices = vkInstance->enumeratePhysicalDevices();
+
+		if (devices.size() == 0) {
+			throw std::runtime_error("failed to find GPUs with Vulkan support!");
+		}
+
+		for (const auto& device : devices) {
+			if (isDeviceSuitable(device)) {
+				vkDevice = device;
+				return;
+			}
+		}
+		throw std::runtime_error("failed to find a suitable GPU!");
+	}
+
+	bool isDeviceSuitable(const vk::PhysicalDevice& device) {
+		QueueFamilyIndices indices = findQueueFamilies(device);
+		return indices.isComplete();
+	}
+
+	QueueFamilyIndices findQueueFamilies(const vk::PhysicalDevice& device) {
+		QueueFamilyIndices indices;
+
+		auto families = device.getQueueFamilyProperties();
+
+		int i = 0;
+		for (const auto& family : families) {
+			if (family.queueFlags & vk::QueueFlagBits::eGraphics) {
+				indices.graphicsFamily = i;
+			}
+			if (indices.isComplete()) {
+				break;
+			}
+			++i;
+		}
+
+		return indices;
 	}
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {

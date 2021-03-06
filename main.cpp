@@ -4,7 +4,7 @@
 #include "HelloTriangleApplication.cpp"
 
 int main() {
-    HelloTriangleApplication app;
+    auto app = HelloTriangleApplication();
 
     try {
         app.run();
