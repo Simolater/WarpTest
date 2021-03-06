@@ -5,11 +5,22 @@
 #include <stdexcept>
 
 #include <vector>
+#include <cstring>
 
 #define VK_CHECK(result, err_message) if ((result) != VK_SUCCESS) throw std::runtime_error(err_message);
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
+
+const std::vector<const char*> validationLayers = {
+	"VK_LAYER_KHRONOS_validation"
+};
+
+#ifdef NDEBUG
+const bool enableValidationLayers = false;
+#else
+const bool enableValidationLayers = true;
+#endif
 
 class HelloTriangleApplication {
 
@@ -41,6 +52,10 @@ private:
 	}
 
 	void createInstance() {
+		if (enableValidationLayers && !checkValidationLayerSupport()) {
+			throw std::runtime_error("requested validation layers, are not available");
+		}
+
 		VkApplicationInfo appInfo{};
 		appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 		appInfo.pApplicationName = "Test Application";
@@ -61,7 +76,12 @@ private:
 		createInfo.enabledExtensionCount = glfwExtensionCount;
 		createInfo.ppEnabledExtensionNames = glfwExtensions;
 
-		createInfo.enabledLayerCount = 0;
+		if (enableValidationLayers) {
+			createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+			createInfo.ppEnabledLayerNames = validationLayers.data();
+		} else {
+			createInfo.enabledLayerCount = 0;
+		}
 
 		VK_CHECK(vkCreateInstance(&createInfo, nullptr, &vkInstance), "failed to create instance!");
 
@@ -78,6 +98,30 @@ private:
 			std::cout << '\t' << extension.extensionName << std::endl;
 		}
 #endif
+	}
+
+	bool checkValidationLayerSupport() {
+		uint32_t layerCount;
+		vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
+
+		std::vector<VkLayerProperties> availableLayers(layerCount);
+		vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
+
+		for (const char* layername : validationLayers) {
+			bool foundLayer = false;
+
+			for (const auto& layerProperty : availableLayers) {
+				if (strcmp(layername, layerProperty.layerName) == 0) {
+					foundLayer = true;
+					break;
+				}
+			}
+			if (!foundLayer) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	void mainLoop() {
