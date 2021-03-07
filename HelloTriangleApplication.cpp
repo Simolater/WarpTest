@@ -64,6 +64,7 @@ private:
 	 
 	vk::UniqueSwapchainKHR swapChain;
 	std::vector<vk::Image> swapChainImages;
+	std::vector<vk::UniqueImageView> swapChainImageViews;
 	vk::Format swapChainImageFormat;
 	vk::Extent2D swapChainExtent;
 
@@ -83,6 +84,7 @@ private:
 		pickPhysicalDevice();
 		createLogicalDevice();
 		createSwapChain();
+		createImageViews();
 	}
 
 	void mainLoop() {
@@ -266,6 +268,33 @@ private:
 		swapChainImages = vkDevice->getSwapchainImagesKHR(*swapChain);
 
 		swapChainImageFormat = surfaceFormat.format;
+	}
+
+	void createImageViews() {
+		swapChainImageViews.resize(swapChainImages.size());
+
+		for (size_t i = 0; i < swapChainImages.size(); ++i) {
+			auto createInfo = vk::ImageViewCreateInfo(
+				vk::ImageViewCreateFlags(),
+				swapChainImages[i],
+				vk::ImageViewType::e2D,
+				swapChainImageFormat,
+				{vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity, vk::ComponentSwizzle::eIdentity},
+				{
+					vk::ImageAspectFlagBits::eColor,
+					0,	// baseMipLevel
+					1,	// levelCount
+					0,	// baseArrayLayer
+					1	// layerCount
+				}
+			);
+			try {
+				swapChainImageViews.push_back(vkDevice->createImageViewUnique(createInfo));
+			}
+			catch (vk::SystemError err) {
+				throw std::runtime_error("failed to create image views!");
+			}
+		}
 	}
 
 	std::vector<const char*> getRequiredExtensions() {
