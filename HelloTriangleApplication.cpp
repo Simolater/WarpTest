@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <optional>
 #include <algorithm>
+#include <fstream>
 
 const uint32_t WIDTH = 800, HEIGHT = 600;
 
@@ -68,6 +69,8 @@ private:
 	vk::Format swapChainImageFormat;
 	vk::Extent2D swapChainExtent;
 
+	vk::UniquePipelineLayout pipelineLayout;
+
 	void initWindow() {
 		glfwInit();
 
@@ -85,6 +88,7 @@ private:
 		createLogicalDevice();
 		createSwapChain();
 		createImageViews();
+		createGraphicsPipeline();
 	}
 
 	void mainLoop() {
@@ -297,6 +301,99 @@ private:
 		}
 	}
 
+	void createGraphicsPipeline() {
+		auto vertShaderModule = createShaderModule(readFile("shaders/vert.spv"));
+		auto fragShaderModule = createShaderModule(readFile("shaders/frag.spv"));
+
+		vk::PipelineShaderStageCreateInfo shaderStages[] = { 
+			{
+				vk::PipelineShaderStageCreateFlags(),
+				vk::ShaderStageFlagBits::eVertex,
+				*vertShaderModule,
+				"main"
+			},
+			{
+				vk::PipelineShaderStageCreateFlags(),
+				vk::ShaderStageFlagBits::eFragment,
+				*fragShaderModule,
+				"main"
+			} 
+		};
+
+		auto vertexInputInfo = vk::PipelineVertexInputStateCreateInfo(
+			vk::PipelineVertexInputStateCreateFlags(),
+			0, nullptr,	// Binding descriptions
+			0, nullptr	// Attribute descriptions
+		);
+
+		auto inputAssembly = vk::PipelineInputAssemblyStateCreateInfo(
+			vk::PipelineInputAssemblyStateCreateFlags(),
+			vk::PrimitiveTopology::eTriangleList,
+			VK_FALSE	// primitiveRestartEnable
+		);
+
+		auto viewport = vk::Viewport(
+			0.0f,	// x
+			0.0f,	// y
+			(float) swapChainExtent.width,
+			(float) swapChainExtent.height,
+			0.0f,	// minDepth
+			1.0f	// maxDepth
+		);
+
+		auto scissor = vk::Rect2D(
+			{ 0, 0 },
+			swapChainExtent
+		);
+
+		auto rasterizer = vk::PipelineRasterizationStateCreateInfo(
+			vk::PipelineRasterizationStateCreateFlags(),
+			VK_FALSE,	// depthClamp
+			VK_FALSE,	// rasterizerDiscard
+			vk::PolygonMode::eFill,
+			vk::CullModeFlagBits::eBack,
+			vk::FrontFace::eClockwise,
+			VK_FALSE,	// depthBias
+			0.0f, 0.0f, 0.0f,	// depthBiasValues
+			1.0f		// lineWidth
+		);
+
+		auto multisampling = vk::PipelineMultisampleStateCreateInfo(
+			vk::PipelineMultisampleStateCreateFlags(),
+			vk::SampleCountFlagBits::e1,
+			VK_FALSE,	// sampleShading
+			1.0f,		// minSampleShading
+			nullptr,	// pSampleMask
+			VK_FALSE,	// alphaToCoverage
+			VK_FALSE	// alphaToOne
+		);
+
+		vk::PipelineColorBlendAttachmentState colorBlendAttachment{};
+		colorBlendAttachment.blendEnable = VK_FALSE;
+		colorBlendAttachment.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+
+		vk::PipelineColorBlendStateCreateInfo colorBlending{};
+		colorBlending.logicOpEnable = VK_FALSE;
+		colorBlending.logicOp = vk::LogicOp::eCopy;
+		colorBlending.attachmentCount = 1;
+		colorBlending.pAttachments = &colorBlendAttachment;
+		colorBlending.blendConstants[0] = 0.0f;
+		colorBlending.blendConstants[1] = 0.0f;
+		colorBlending.blendConstants[2] = 0.0f;
+		colorBlending.blendConstants[3] = 0.0f;
+
+		// for uniform values like transformation matricies that can be changed ad drawing time
+		vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
+		pipelineLayoutInfo.setLayoutCount = 0;
+
+		try {
+			pipelineLayout = vkDevice->createPipelineLayoutUnique(pipelineLayoutInfo);
+		}
+		catch (vk::SystemError err) {
+			throw std::runtime_error("failed to create pipeline layout!");
+		}
+	}
+
 	std::vector<const char*> getRequiredExtensions() {
 		uint32_t glfwExtensionCount = 0;
 		const char** glfwExtensions;
@@ -412,6 +509,37 @@ private:
 		}
 
 		return requiredExtensions.empty();
+	}
+
+
+	vk::UniqueShaderModule createShaderModule(const std::vector<char>& code) {
+		try {
+			return vkDevice->createShaderModuleUnique({
+				vk::ShaderModuleCreateFlags(),
+				code.size(),
+				reinterpret_cast<const uint32_t*>(code.data())
+				});
+		}
+		catch (vk::SystemError err) {
+			throw std::runtime_error("failed to create shader module!");
+		}
+	}
+
+	static std::vector<char> readFile(const std::string& filename) {
+		std::ifstream file(filename, std::ios::ate | std::ios::binary);
+
+		if (!file.is_open()) {
+			throw std::runtime_error("failed to open file!");
+		}
+
+		size_t fileSize = (size_t) file.tellg();
+		std::vector<char> buffer(fileSize);
+
+		file.seekg(0);
+		file.read(buffer.data(), fileSize);
+		file.close();
+
+		return buffer;
 	}
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
