@@ -44,7 +44,11 @@ private:
 	GLFWwindow* window;
 
 	vk::UniqueInstance vkInstance;
-	vk::PhysicalDevice vkDevice;
+
+	vk::PhysicalDevice vkPhysicalDevice;
+	vk::UniqueDevice vkDevice;
+
+	vk::Queue graphicsQueue;
 
 	void initWindow() {
 		glfwInit();
@@ -59,6 +63,7 @@ private:
 		createInstance();
 		setupDebugMessenger();
 		pickPhysicalDevice();
+		createLogicalDevice();
 	}
 
 	void mainLoop() {
@@ -100,7 +105,12 @@ private:
 			createInfo.ppEnabledLayerNames = validationLayers.data();
 		}
 
-		vkInstance = vk::createInstanceUnique(createInfo, nullptr);
+		try {
+			vkInstance = vk::createInstanceUnique(createInfo, nullptr);
+		}
+		catch (vk::SystemError err) {
+			throw std::runtime_error("failed to create instance!");
+		}
 	}
 
 	void setupDebugMessenger() {
@@ -160,7 +170,7 @@ private:
 
 		for (const auto& device : devices) {
 			if (isDeviceSuitable(device)) {
-				vkDevice = device;
+				vkPhysicalDevice = device;
 				return;
 			}
 		}
@@ -187,8 +197,32 @@ private:
 			}
 			++i;
 		}
-
 		return indices;
+	}
+
+	void createLogicalDevice() {
+		QueueFamilyIndices indices = findQueueFamilies(vkPhysicalDevice);
+
+		float queuePriority = 1.0f;
+		auto queueCreateInfo = vk::DeviceQueueCreateInfo(vk::DeviceQueueCreateFlags(), indices.graphicsFamily.value(), 1, &queuePriority);
+
+		auto deviceFeatures = vk::PhysicalDeviceFeatures();
+
+		auto deviceCreateInfo = vk::DeviceCreateInfo(vk::DeviceCreateFlags(), 1, &queueCreateInfo, 0, nullptr, 0, nullptr, &deviceFeatures);
+
+		if (enableValidationLayers) {
+			deviceCreateInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+			deviceCreateInfo.ppEnabledLayerNames = validationLayers.data();
+		}
+
+		try {
+			vkDevice = vkPhysicalDevice.createDeviceUnique(deviceCreateInfo);
+		}
+		catch (vk::SystemError err) {
+			throw std::runtime_error("failed to create logical device!");
+		}
+
+		graphicsQueue = vkDevice->getQueue(indices.graphicsFamily.value(), 0);
 	}
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
