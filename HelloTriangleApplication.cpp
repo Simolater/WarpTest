@@ -66,10 +66,13 @@ private:
 	vk::UniqueSwapchainKHR swapChain;
 	std::vector<vk::Image> swapChainImages;
 	std::vector<vk::UniqueImageView> swapChainImageViews;
+	std::vector<vk::UniqueFramebuffer> swapChainFramebuffers;
 	vk::Format swapChainImageFormat;
 	vk::Extent2D swapChainExtent;
 
+	vk::UniqueRenderPass renderPass;
 	vk::UniquePipelineLayout pipelineLayout;
+	vk::UniquePipeline graphicsPipeline;
 
 	void initWindow() {
 		glfwInit();
@@ -88,7 +91,9 @@ private:
 		createLogicalDevice();
 		createSwapChain();
 		createImageViews();
+		createRenderPass();
 		createGraphicsPipeline();
+		createFrameBuffers();
 	}
 
 	void mainLoop() {
@@ -272,6 +277,7 @@ private:
 		swapChainImages = vkDevice->getSwapchainImagesKHR(*swapChain);
 
 		swapChainImageFormat = surfaceFormat.format;
+		swapChainExtent = extent;
 	}
 
 	void createImageViews() {
@@ -298,6 +304,41 @@ private:
 			catch (vk::SystemError err) {
 				throw std::runtime_error("failed to create image views!");
 			}
+		}
+	}
+
+	void createRenderPass() {
+		vk::AttachmentDescription colorAttachment{};
+		colorAttachment.format = swapChainImageFormat;
+		colorAttachment.samples = vk::SampleCountFlagBits::e1;
+		colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;
+		colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;
+		colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+		colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+
+		colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
+		colorAttachment.finalLayout = vk::ImageLayout::ePresentSrcKHR;
+
+		vk::AttachmentReference colorAttachmentRef{};
+		colorAttachmentRef.attachment = 0;
+		colorAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
+
+		vk::SubpassDescription subpass{};
+		subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+		subpass.colorAttachmentCount = 1;
+		subpass.pColorAttachments = &colorAttachmentRef;
+
+		vk::RenderPassCreateInfo renderPassInfo{};
+		renderPassInfo.attachmentCount = 1;
+		renderPassInfo.pAttachments = &colorAttachment;
+		renderPassInfo.subpassCount = 1;
+		renderPassInfo.pSubpasses = &subpass;
+
+		try {
+			renderPass = vkDevice->createRenderPassUnique(renderPassInfo);
+		}
+		catch (vk::SystemError err) {
+			throw std::runtime_error("failed to create render pass!");
 		}
 	}
 
@@ -346,6 +387,12 @@ private:
 			swapChainExtent
 		);
 
+		auto viewportState = vk::PipelineViewportStateCreateInfo(
+			vk::PipelineViewportStateCreateFlags(),
+			1, &viewport,
+			1, &scissor
+		);
+
 		auto rasterizer = vk::PipelineRasterizationStateCreateInfo(
 			vk::PipelineRasterizationStateCreateFlags(),
 			VK_FALSE,	// depthClamp
@@ -391,6 +438,55 @@ private:
 		}
 		catch (vk::SystemError err) {
 			throw std::runtime_error("failed to create pipeline layout!");
+		}
+
+		vk::GraphicsPipelineCreateInfo pipelineInfo{};
+		pipelineInfo.stageCount = 2;
+		pipelineInfo.pStages = shaderStages;
+
+		pipelineInfo.pVertexInputState = &vertexInputInfo;
+		pipelineInfo.pInputAssemblyState = &inputAssembly;
+		pipelineInfo.pViewportState = &viewportState;
+		pipelineInfo.pRasterizationState = &rasterizer;
+		pipelineInfo.pMultisampleState = &multisampling;
+		pipelineInfo.pDepthStencilState = nullptr;
+		pipelineInfo.pColorBlendState = &colorBlending;
+		pipelineInfo.pDynamicState = nullptr;
+
+		pipelineInfo.layout = *pipelineLayout;
+		pipelineInfo.renderPass = *renderPass;
+		pipelineInfo.subpass = 0;
+
+		try {
+			graphicsPipeline = vkDevice->createGraphicsPipelineUnique(nullptr, pipelineInfo).value;
+		}
+		catch (vk::SystemError err) {
+			throw std::runtime_error("failed to create graphics pipeline!");
+		}
+	}
+
+	void createFrameBuffers() {
+		swapChainFramebuffers.resize(swapChainImageViews.size());
+
+		for (size_t i = 0; i < swapChainImageViews.size(); ++i) {
+			vk::ImageView attachments[] = {
+				*swapChainImageViews[i]
+			};
+
+			vk::FramebufferCreateInfo framebufferInfo = {};
+			framebufferInfo.renderPass = *renderPass;
+			framebufferInfo.attachmentCount = 1;
+			framebufferInfo.pAttachments = attachments;
+			framebufferInfo.width = swapChainExtent.width;
+			framebufferInfo.height = swapChainExtent.height;
+			framebufferInfo.layers = 1;
+
+			try {
+				swapChainFramebuffers[i] = vkDevice->createFramebufferUnique(framebufferInfo); 
+			}
+			catch (vk::SystemError err) {
+				throw std::runtime_error("failed to create frame buffer!");
+			}
 		}
 	}
 
