@@ -73,6 +73,8 @@ private:
 	vk::UniqueRenderPass renderPass;
 	vk::UniquePipelineLayout pipelineLayout;
 	vk::UniquePipeline graphicsPipeline;
+	vk::UniqueCommandPool commandPool;
+	std::vector<vk::UniqueCommandBuffer> commandBuffers;
 
 	void initWindow() {
 		glfwInit();
@@ -94,6 +96,8 @@ private:
 		createRenderPass();
 		createGraphicsPipeline();
 		createFrameBuffers();
+		createCommandPool();
+		createCommandBuffers();
 	}
 
 	void mainLoop() {
@@ -299,7 +303,7 @@ private:
 				}
 			);
 			try {
-				swapChainImageViews.push_back(vkDevice->createImageViewUnique(createInfo));
+				swapChainImageViews[i] = vkDevice->createImageViewUnique(createInfo);
 			}
 			catch (vk::SystemError err) {
 				throw std::runtime_error("failed to create image views!");
@@ -488,6 +492,74 @@ private:
 				throw std::runtime_error("failed to create frame buffer!");
 			}
 		}
+	}
+
+	void createCommandPool() {
+		QueueFamilyIndices queueFamilyIndices = findQueueFamilies(vkPhysicalDevice);
+
+		vk::CommandPoolCreateInfo poolInfo = {};
+		poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+
+		try {
+			commandPool = vkDevice->createCommandPoolUnique(poolInfo);
+		}
+		catch (vk::SystemError err) {
+			throw std::runtime_error("failed to create command pool!");
+		}
+	}
+
+	void createCommandBuffers() {
+		commandBuffers.resize(swapChainFramebuffers.size());
+
+		vk::CommandBufferAllocateInfo allocateInfo{};
+		allocateInfo.commandPool = *commandPool;
+		allocateInfo.level = vk::CommandBufferLevel::ePrimary;
+		allocateInfo.commandBufferCount = (uint32_t)commandBuffers.size();
+
+		try {
+			commandBuffers = vkDevice->allocateCommandBuffersUnique(allocateInfo);
+		}
+		catch (vk::SystemError err) {
+			throw std::runtime_error("failed to allocate command buffers!");
+		}
+
+		for (int i = 0; i < commandBuffers.size(); ++i) {
+			vk::CommandBufferBeginInfo beginInfo{};
+
+			try {
+				commandBuffers[i]->begin(beginInfo);
+			}
+			catch (vk::SystemError err) {
+				throw std::runtime_error("failed to being recording command buffer!");
+			}
+
+			vk::RenderPassBeginInfo renderPassInfo{};
+			renderPassInfo.renderPass = *renderPass;
+			renderPassInfo.framebuffer = *swapChainFramebuffers[i];
+
+			renderPassInfo.renderArea.offset = vk::Offset2D( 0, 0 );
+			renderPassInfo.renderArea.extent = swapChainExtent;
+
+			vk::ClearValue clearColor = { std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f} };
+			renderPassInfo.clearValueCount = 1;
+			renderPassInfo.pClearValues = &clearColor;
+
+			commandBuffers[i]->beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+
+			commandBuffers[i]->bindPipeline(vk::PipelineBindPoint::eGraphics, *graphicsPipeline);
+
+			commandBuffers[i]->draw(3, 1, 0, 0);
+			
+			commandBuffers[i]->endRenderPass();
+
+			try {
+				commandBuffers[i]->end();
+			}
+			catch (vk::SystemError err) {
+				throw std::runtime_error("failed to record command buffer!");
+			}
+		}
+
 	}
 
 	std::vector<const char*> getRequiredExtensions() {
