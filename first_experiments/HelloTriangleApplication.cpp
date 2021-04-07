@@ -470,7 +470,7 @@ private:
 			VK_FALSE,	// rasterizerDiscard
 			vk::PolygonMode::eFill,
 			vk::CullModeFlagBits::eBack,
-			vk::FrontFace::eClockwise,
+			vk::FrontFace::eCounterClockwise,
 			VK_FALSE,	// depthBias
 			0.0f, 0.0f, 0.0f,	// depthBiasValues
 			1.0f		// lineWidth
@@ -615,7 +615,7 @@ private:
 
 			commandBuffers[i]->bindPipeline(vk::PipelineBindPoint::eGraphics, *graphicsPipeline);
 
-			commandBuffers[i]->draw(3, 1, 0, 0);
+			commandBuffers[i]->draw(6, 1, 0, 0);
 			
 			commandBuffers[i]->endRenderPass();
 
@@ -771,7 +771,6 @@ private:
 
 		return requiredExtensions.empty();
 	}
-
 
 	vk::UniqueShaderModule createShaderModule(const std::vector<char>& code) {
 		try {
