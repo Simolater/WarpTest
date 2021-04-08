@@ -28,14 +28,14 @@ project "Warp-Application"
 		}
 
     filter "configurations:Debug"
-        defines { "DEBUG" }
+        defines { "DEBUG", "WP_LOG_ENABLE" }
         symbols "On"
     
     filter "configurations:Release"
-        defines { "NDEBUG" }
+        defines { "NDEBUG", "WP_LOG_ENABLE" }
         symbols "On"
         optimize "On"
 
-    filter "configurations:Debug"
+    filter "configurations:Dist"
         defines { "NDEBUG" }
         optimize "On"
