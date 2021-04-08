@@ -13,7 +13,8 @@ project "Warp-Application"
     }
 
     includedirs {
-        "../Warp-Core/src"
+        "../Warp-Core/src",
+        "../Warp-Core/vendor/spdlog/include"
     }
 
     links {

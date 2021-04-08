@@ -16,7 +16,8 @@ project "Warp-Core"
     }
 
     includedirs {
-        "src"
+        "src",
+        "vendor/spdlog/include"
     }
 
     filter "system:windows"
