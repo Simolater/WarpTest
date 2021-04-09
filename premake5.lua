@@ -6,6 +6,8 @@ workspace "Warp"
 
 outputdir = "%{cfg.buildcfg}-%{cfg.system}-%{cfg.architecture}"
 
+include "vendor/opengl_premake/libs/glfw.lua"
+
 project "Warp"
     kind "ConsoleApp"
     language "C++"
@@ -25,7 +27,12 @@ project "Warp"
 
     includedirs {
         "src",
-        "vendor/spdlog/include"
+        "vendor/spdlog/include",
+        "vendor/opengl_premake/libs/glfw/include"
+    }
+
+    links {
+        "GLFW"
     }
 
     filter "system:windows"

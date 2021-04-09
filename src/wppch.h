@@ -8,6 +8,6 @@
 
 #include "Log\Log.h"
 
-#ifdef WARP_CORE_PLATFORM_WINDOWS
+#ifdef WARP_PLATFORM_WINDOWS
 #include <Windows.h>
 #endif

@@ -1,4 +1,6 @@
 #pragma once
+#include "Base.h"
+#include "Window.h"
 
 namespace Warp {
 
@@ -8,5 +10,8 @@ namespace Warp {
 		void init();
 
 		void run();
+	
+	private:
+		CountedRef<Window> m_window;
 	};
 }
