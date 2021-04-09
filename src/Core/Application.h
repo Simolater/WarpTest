@@ -5,6 +5,8 @@ namespace Warp {
 	class Application {
 
 	public:
-		virtual void run();
+		void init();
+
+		void run();
 	};
 }

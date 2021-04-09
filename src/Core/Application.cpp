@@ -3,8 +3,11 @@
 
 namespace Warp {
 
+	void Application::init() {
+
+	}
+
 	void Application::run() {
-		WP_LOG_INIT();
-		WP_LOG_CRITICAL("Test");
+
 	}
 }
