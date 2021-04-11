@@ -1,9 +1,9 @@
 #pragma once
 
-#include <memory>
-#include <spdlog\spdlog.h>
-
 #ifdef WP_LOG_ENABLE
+
+#include "Core\Base.h"
+#include <spdlog\spdlog.h>
 
 namespace Warp {
 
@@ -12,10 +12,10 @@ namespace Warp {
 	public:
 		static void init();
 
-		static std::shared_ptr<spdlog::logger>& getLogger() { return s_Logger; }
+		static CountedRef<spdlog::logger>& getLogger() { return s_Logger; }
 
 	private:
-		static std::shared_ptr<spdlog::logger> s_Logger;
+		static CountedRef<spdlog::logger> s_Logger;
 	};
 }
 
