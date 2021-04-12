@@ -43,11 +43,11 @@ project "Warp"
 		}
 
     filter "configurations:Debug"
-        defines { "DEBUG", "WP_LOG_ENABLE" }
+        defines { "DEBUG", "WP_LOG_ENABLE", "WP_ASSERT_ENABLE" }
         symbols "On"
     
     filter "configurations:Release"
-        defines { "NDEBUG", "WP_LOG_ENABLE" }
+        defines { "NDEBUG", "WP_LOG_ENABLE", "WP_ASSERT_ENABLE" }
         symbols "On"
         optimize "On"
 
