@@ -1,5 +1,4 @@
 #pragma once
-
 #include <memory>
 
 namespace Warp {
@@ -19,3 +18,9 @@ namespace Warp {
 		return std::make_unique<T>(std::forward<args>(values)...);
 	}
 }
+
+#if defined(WARP_PLATFORM_WINDOWS)
+#define WP_DEBUG_BREAK() __debugbreak();
+#else
+#error "Debug break not yet supported on this platform"
+#endif

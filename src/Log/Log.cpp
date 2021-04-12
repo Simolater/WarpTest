@@ -1,7 +1,5 @@
 #include "wppch.h"
 #include "Log.h"
-#include "Core\Base.h"
-#include <assert.h>
 
 #include <spdlog/sinks/stdout_color_sinks.h>
 
